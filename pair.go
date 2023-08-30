@@ -17,11 +17,11 @@ import (
 	"go.mau.fi/libsignal/ecc"
 	"google.golang.org/protobuf/proto"
 
-	waBinary "go.mau.fi/whatsmeow/binary"
-	waProto "go.mau.fi/whatsmeow/binary/proto"
-	"go.mau.fi/whatsmeow/types"
-	"go.mau.fi/whatsmeow/types/events"
-	"go.mau.fi/whatsmeow/util/keys"
+	waBinary "github.com/shouyinsun/whatsmeow/binary"
+	waProto "github.com/shouyinsun/whatsmeow/binary/proto"
+	"github.com/shouyinsun/whatsmeow/types"
+	"github.com/shouyinsun/whatsmeow/types/events"
+	"github.com/shouyinsun/whatsmeow/util/keys"
 )
 
 func (cli *Client) handleIQ(node *waBinary.Node) {

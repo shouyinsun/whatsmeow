@@ -21,15 +21,15 @@ import (
 
 	"go.mau.fi/util/random"
 
-	"go.mau.fi/whatsmeow/appstate"
-	waBinary "go.mau.fi/whatsmeow/binary"
-	waProto "go.mau.fi/whatsmeow/binary/proto"
-	"go.mau.fi/whatsmeow/socket"
-	"go.mau.fi/whatsmeow/store"
-	"go.mau.fi/whatsmeow/types"
-	"go.mau.fi/whatsmeow/types/events"
-	"go.mau.fi/whatsmeow/util/keys"
-	waLog "go.mau.fi/whatsmeow/util/log"
+	"github.com/shouyinsun/whatsmeow/appstate"
+	waBinary "github.com/shouyinsun/whatsmeow/binary"
+	waProto "github.com/shouyinsun/whatsmeow/binary/proto"
+	"github.com/shouyinsun/whatsmeow/socket"
+	"github.com/shouyinsun/whatsmeow/store"
+	"github.com/shouyinsun/whatsmeow/types"
+	"github.com/shouyinsun/whatsmeow/types/events"
+	"github.com/shouyinsun/whatsmeow/util/keys"
+	waLog "github.com/shouyinsun/whatsmeow/util/log"
 )
 
 // EventHandler is a function that can handle events from WhatsApp.
@@ -142,6 +142,8 @@ type Client struct {
 
 	proxy socket.Proxy
 	http  *http.Client
+
+	BizType string
 }
 
 // Size of buffer for the channel that all incoming XML nodes go through.

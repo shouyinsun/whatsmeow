@@ -14,11 +14,11 @@ import (
 
 	"go.mau.fi/util/random"
 
-	waProto "go.mau.fi/whatsmeow/binary/proto"
-	"go.mau.fi/whatsmeow/store"
-	"go.mau.fi/whatsmeow/types"
-	"go.mau.fi/whatsmeow/util/keys"
-	waLog "go.mau.fi/whatsmeow/util/log"
+	waProto "github.com/shouyinsun/whatsmeow/binary/proto"
+	"github.com/shouyinsun/whatsmeow/store"
+	"github.com/shouyinsun/whatsmeow/types"
+	"github.com/shouyinsun/whatsmeow/util/keys"
+	waLog "github.com/shouyinsun/whatsmeow/util/log"
 )
 
 // Container is a wrapper for a SQL database that can contain multiple whatsmeow sessions.
@@ -84,14 +84,22 @@ func NewWithDB(db *sql.DB, dialect string, log waLog.Logger) *Container {
 }
 
 const getAllDevicesQuery = `
-SELECT jid, registration_id, noise_key, identity_key,
+SELECT jid, biz_type, registration_id, noise_key, identity_key,
        signed_pre_key, signed_pre_key_id, signed_pre_key_sig,
        adv_key, adv_details, adv_account_sig, adv_account_sig_key, adv_device_sig,
        platform, business_name, push_name
 FROM whatsmeow_device
 `
 
-const getDeviceQuery = getAllDevicesQuery + " WHERE jid=$1"
+const getDeviceQuery = getAllDevicesQuery + " WHERE jid=?"
+
+const getDeviceByJidUserQuery = getAllDevicesQuery + " WHERE jid_user=? order by created_time desc limit 1 "
+
+const hasScanQrcode = `select jid FROM whatsmeow_qrcode_record WHERE noise_key_pub=? and identity_key_pub=? and adv_secret_key=? and deleted = 0 `
+
+func (c *Container) GenerateDevice() (*store.Device, error) {
+	return c.NewDevice(), nil
+}
 
 type scannable interface {
 	Scan(dest ...interface{}) error
@@ -256,4 +264,41 @@ func (c *Container) DeleteDevice(store *store.Device) error {
 	}
 	_, err := c.db.Exec(deleteDeviceQuery, store.ID.String())
 	return err
+}
+
+func (c *Container) HasScanQrcode(noiseKeyPub, identityKeyPub, advSecret string) (jid string, err error) {
+	err = c.db.QueryRow(hasScanQrcode, noiseKeyPub, identityKeyPub, advSecret).Scan(&jid)
+	if errors.Is(err, sql.ErrNoRows) {
+		err = nil
+	}
+	return jid, nil
+}
+
+func (c *Container) GetDeviceByJidUser(jid string) (*store.Device, error) {
+	devices, err := c.GetDeviceByJidUserExc(jid)
+	if err != nil {
+		return nil, err
+	}
+	if len(devices) == 0 {
+		//return c.NewDevice(), nil
+		return nil, nil
+	} else {
+		return devices[0], nil
+	}
+}
+
+func (c *Container) GetDeviceByJidUserExc(jid string) ([]*store.Device, error) {
+	res, err := c.db.Query(getDeviceByJidUserQuery, jid)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query sessions: %w", err)
+	}
+	sessions := make([]*store.Device, 0)
+	for res.Next() {
+		sess, scanErr := c.scanDevice(res)
+		if scanErr != nil {
+			return sessions, scanErr
+		}
+		sessions = append(sessions, sess)
+	}
+	return sessions, nil
 }
