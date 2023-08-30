@@ -125,7 +125,8 @@ type PrivacyTokenStore interface {
 }
 
 type Device struct {
-	Log waLog.Logger
+	Log     waLog.Logger
+	BizType string
 
 	NoiseKey       *keys.KeyPair
 	IdentityKey    *keys.KeyPair
