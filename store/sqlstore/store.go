@@ -67,12 +67,12 @@ var _ store.ContactStore = (*SQLStore)(nil)
 
 const (
 	putIdentityQuery = `
-		INSERT INTO whatsmeow_identity_keys (our_jid, their_id, identity) VALUES ($1, $2, $3)
-		ON CONFLICT (our_jid, their_id) DO UPDATE SET identity=excluded.identity
+		INSERT INTO whatsmeow_identity_keys (our_jid, their_id, identity) VALUES (?, ?, ?)
+		ON DUPLICATE KEY UPDATE identity=?
 	`
-	deleteAllIdentitiesQuery = `DELETE FROM whatsmeow_identity_keys WHERE our_jid=$1 AND their_id LIKE $2`
-	deleteIdentityQuery      = `DELETE FROM whatsmeow_identity_keys WHERE our_jid=$1 AND their_id=$2`
-	getIdentityQuery         = `SELECT identity FROM whatsmeow_identity_keys WHERE our_jid=$1 AND their_id=$2`
+	deleteAllIdentitiesQuery = `DELETE FROM whatsmeow_identity_keys WHERE our_jid=? AND their_id LIKE ?`
+	deleteIdentityQuery      = `DELETE FROM whatsmeow_identity_keys WHERE our_jid=? AND their_id=?`
+	getIdentityQuery         = `SELECT identity FROM whatsmeow_identity_keys WHERE our_jid=? AND their_id=?`
 )
 
 func (s *SQLStore) PutIdentity(address string, key [32]byte) error {
@@ -105,14 +105,14 @@ func (s *SQLStore) IsTrustedIdentity(address string, key [32]byte) (bool, error)
 }
 
 const (
-	getSessionQuery = `SELECT session FROM whatsmeow_sessions WHERE our_jid=$1 AND their_id=$2`
-	hasSessionQuery = `SELECT true FROM whatsmeow_sessions WHERE our_jid=$1 AND their_id=$2`
+	getSessionQuery = `SELECT session FROM whatsmeow_sessions WHERE our_jid=? AND their_id=?`
+	hasSessionQuery = `SELECT true FROM whatsmeow_sessions WHERE our_jid=? AND their_id=?`
 	putSessionQuery = `
-		INSERT INTO whatsmeow_sessions (our_jid, their_id, session) VALUES ($1, $2, $3)
-		ON CONFLICT (our_jid, their_id) DO UPDATE SET session=excluded.session
+		INSERT INTO whatsmeow_sessions (our_jid, their_id, session) VALUES (?, ?, ?)
+		ON DUPLICATE KEY UPDATE session=?
 	`
-	deleteAllSessionsQuery = `DELETE FROM whatsmeow_sessions WHERE our_jid=$1 AND their_id LIKE $2`
-	deleteSessionQuery     = `DELETE FROM whatsmeow_sessions WHERE our_jid=$1 AND their_id=$2`
+	deleteAllSessionsQuery = `DELETE FROM whatsmeow_sessions WHERE our_jid=? AND their_id LIKE ?`
+	deleteSessionQuery     = `DELETE FROM whatsmeow_sessions WHERE our_jid=? AND their_id=?`
 )
 
 func (s *SQLStore) GetSession(address string) (session []byte, err error) {
@@ -147,13 +147,13 @@ func (s *SQLStore) DeleteSession(address string) error {
 }
 
 const (
-	getLastPreKeyIDQuery        = `SELECT MAX(key_id) FROM whatsmeow_pre_keys WHERE jid=$1`
-	insertPreKeyQuery           = `INSERT INTO whatsmeow_pre_keys (jid, key_id, key, uploaded) VALUES ($1, $2, $3, $4)`
-	getUnuploadedPreKeysQuery   = `SELECT key_id, key FROM whatsmeow_pre_keys WHERE jid=$1 AND uploaded=false ORDER BY key_id LIMIT $2`
-	getPreKeyQuery              = `SELECT key_id, key FROM whatsmeow_pre_keys WHERE jid=$1 AND key_id=$2`
-	deletePreKeyQuery           = `DELETE FROM whatsmeow_pre_keys WHERE jid=$1 AND key_id=$2`
-	markPreKeysAsUploadedQuery  = `UPDATE whatsmeow_pre_keys SET uploaded=true WHERE jid=$1 AND key_id<=$2`
-	getUploadedPreKeyCountQuery = `SELECT COUNT(*) FROM whatsmeow_pre_keys WHERE jid=$1 AND uploaded=true`
+	getLastPreKeyIDQuery        = `SELECT MAX(key_id) FROM whatsmeow_pre_keys WHERE jid=?`
+	insertPreKeyQuery           = "INSERT INTO whatsmeow_pre_keys (jid, key_id, `key`, uploaded) VALUES (?, ?, ?, ?)"
+	getUnuploadedPreKeysQuery   = "SELECT key_id, `key` FROM whatsmeow_pre_keys WHERE jid=? AND uploaded = 0 ORDER BY key_id LIMIT ?"
+	getPreKeyQuery              = "SELECT key_id, `key` FROM whatsmeow_pre_keys WHERE jid=? AND key_id=?"
+	deletePreKeyQuery           = `DELETE FROM whatsmeow_pre_keys WHERE jid=? AND key_id=?`
+	markPreKeysAsUploadedQuery  = `UPDATE whatsmeow_pre_keys SET uploaded=true WHERE jid=? AND key_id<=?`
+	getUploadedPreKeyCountQuery = `SELECT COUNT(*) FROM whatsmeow_pre_keys WHERE jid=? AND uploaded=true`
 )
 
 func (s *SQLStore) genOnePreKey(id uint32, markUploaded bool) (*keys.PreKey, error) {
@@ -257,10 +257,10 @@ func (s *SQLStore) UploadedPreKeyCount() (count int, err error) {
 }
 
 const (
-	getSenderKeyQuery = `SELECT sender_key FROM whatsmeow_sender_keys WHERE our_jid=$1 AND chat_id=$2 AND sender_id=$3`
+	getSenderKeyQuery = `SELECT sender_key FROM whatsmeow_sender_keys WHERE our_jid=? AND chat_id=? AND sender_id=?`
 	putSenderKeyQuery = `
-		INSERT INTO whatsmeow_sender_keys (our_jid, chat_id, sender_id, sender_key) VALUES ($1, $2, $3, $4)
-		ON CONFLICT (our_jid, chat_id, sender_id) DO UPDATE SET sender_key=excluded.sender_key
+		INSERT INTO whatsmeow_sender_keys (our_jid, chat_id, sender_id, sender_key) VALUES (?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE sender_key=?
 	`
 )
 
@@ -279,13 +279,11 @@ func (s *SQLStore) GetSenderKey(group, user string) (key []byte, err error) {
 
 const (
 	putAppStateSyncKeyQuery = `
-		INSERT INTO whatsmeow_app_state_sync_keys (jid, key_id, key_data, timestamp, fingerprint) VALUES ($1, $2, $3, $4, $5)
-		ON CONFLICT (jid, key_id) DO UPDATE
-			SET key_data=excluded.key_data, timestamp=excluded.timestamp, fingerprint=excluded.fingerprint
-			WHERE excluded.timestamp > whatsmeow_app_state_sync_keys.timestamp
+		INSERT INTO whatsmeow_app_state_sync_keys (jid, key_id, key_data, timestamp, fingerprint) VALUES (?, ?, ?, ?, ?)
+		ON DUPLICATE KEY UPDATE key_data=?, timestamp=?, fingerprint=?
 	`
-	getAppStateSyncKeyQuery         = `SELECT key_data, timestamp, fingerprint FROM whatsmeow_app_state_sync_keys WHERE jid=$1 AND key_id=$2`
-	getLatestAppStateSyncKeyIDQuery = `SELECT key_id FROM whatsmeow_app_state_sync_keys WHERE jid=$1 ORDER BY timestamp DESC LIMIT 1`
+	getAppStateSyncKeyQuery         = `SELECT key_data, timestamp, fingerprint FROM whatsmeow_app_state_sync_keys WHERE jid=? AND key_id=?`
+	getLatestAppStateSyncKeyIDQuery = `SELECT key_id FROM whatsmeow_app_state_sync_keys WHERE jid=? ORDER BY timestamp DESC LIMIT 1`
 )
 
 func (s *SQLStore) PutAppStateSyncKey(id []byte, key store.AppStateSyncKey) error {
@@ -313,15 +311,15 @@ func (s *SQLStore) GetLatestAppStateSyncKeyID() ([]byte, error) {
 
 const (
 	putAppStateVersionQuery = `
-		INSERT INTO whatsmeow_app_state_version (jid, name, version, hash) VALUES ($1, $2, $3, $4)
-		ON CONFLICT (jid, name) DO UPDATE SET version=excluded.version, hash=excluded.hash
+		INSERT INTO whatsmeow_app_state_version (jid, name, version, hash) VALUES (?, ?, ?, ?)
+		ON DUPLICATE KEY UPDATE version=?, hash=?
 	`
-	getAppStateVersionQuery                 = `SELECT version, hash FROM whatsmeow_app_state_version WHERE jid=$1 AND name=$2`
-	deleteAppStateVersionQuery              = `DELETE FROM whatsmeow_app_state_version WHERE jid=$1 AND name=$2`
+	getAppStateVersionQuery                 = `SELECT version, hash FROM whatsmeow_app_state_version WHERE jid=? AND name=?`
+	deleteAppStateVersionQuery              = `DELETE FROM whatsmeow_app_state_version WHERE jid=? AND name=?`
 	putAppStateMutationMACsQuery            = `INSERT INTO whatsmeow_app_state_mutation_macs (jid, name, version, index_mac, value_mac) VALUES `
-	deleteAppStateMutationMACsQueryPostgres = `DELETE FROM whatsmeow_app_state_mutation_macs WHERE jid=$1 AND name=$2 AND index_mac=ANY($3::bytea[])`
-	deleteAppStateMutationMACsQueryGeneric  = `DELETE FROM whatsmeow_app_state_mutation_macs WHERE jid=$1 AND name=$2 AND index_mac IN `
-	getAppStateMutationMACQuery             = `SELECT value_mac FROM whatsmeow_app_state_mutation_macs WHERE jid=$1 AND name=$2 AND index_mac=$3 ORDER BY version DESC LIMIT 1`
+	deleteAppStateMutationMACsQueryPostgres = `DELETE FROM whatsmeow_app_state_mutation_macs WHERE jid=? AND name=? AND index_mac=ANY(?::bytea[])`
+	deleteAppStateMutationMACsQueryGeneric  = `DELETE FROM whatsmeow_app_state_mutation_macs WHERE jid=? AND name=? AND index_mac IN `
+	getAppStateMutationMACQuery             = `SELECT value_mac FROM whatsmeow_app_state_mutation_macs WHERE jid=? AND name=? AND index_mac=? ORDER BY version DESC LIMIT 1`
 )
 
 func (s *SQLStore) PutAppStateVersion(name string, version uint64, hash [128]byte) error {
@@ -356,24 +354,16 @@ type execable interface {
 	Exec(query string, args ...interface{}) (sql.Result, error)
 }
 
-func (s *SQLStore) putAppStateMutationMACs(tx execable, name string, version uint64, mutations []store.AppStateMutationMAC) error {
-	values := make([]interface{}, 3+len(mutations)*2)
-	queryParts := make([]string, len(mutations))
-	values[0] = s.JID
-	values[1] = name
-	values[2] = version
-	placeholderSyntax := "($1, $2, $3, $%d, $%d)"
-	if s.dialect == "sqlite3" {
-		placeholderSyntax = "(?1, ?2, ?3, ?%d, ?%d)"
+func (s *SQLStore) putAppStateMutationMACs(tx execable, name string, version uint64, mutations []store.AppStateMutationMAC) (err error) {
+	for _, mutation := range mutations {
+		query := putAppStateMutationMACsQuery + "(?, ?, ?, ?, ?)"
+		_, err = tx.Exec(query, s.JID, name, version, mutation.IndexMAC, mutation.ValueMAC)
+		if err != nil {
+			fmt.Errorf("failed to putAppStateMutationMACs: %w", err)
+			return
+		}
 	}
-	for i, mutation := range mutations {
-		baseIndex := 3 + i*2
-		values[baseIndex] = mutation.IndexMAC
-		values[baseIndex+1] = mutation.ValueMAC
-		queryParts[i] = fmt.Sprintf(placeholderSyntax, baseIndex+1, baseIndex+2)
-	}
-	_, err := tx.Exec(putAppStateMutationMACsQuery+strings.Join(queryParts, ","), values...)
-	return err
+	return
 }
 
 const mutationBatchSize = 400
@@ -438,27 +428,31 @@ func (s *SQLStore) GetAppStateMutationMAC(name string, indexMAC []byte) (valueMA
 
 const (
 	putContactNameQuery = `
-		INSERT INTO whatsmeow_contacts (our_jid, their_jid, first_name, full_name) VALUES ($1, $2, $3, $4)
-		ON CONFLICT (our_jid, their_jid) DO UPDATE SET first_name=excluded.first_name, full_name=excluded.full_name
+		INSERT INTO whatsmeow_contacts (our_jid, their_jid, first_name, full_name) VALUES (?, ?, ?, ?)
+		ON DUPLICATE KEY UPDATE first_name=?, full_name=?
 	`
 	putManyContactNamesQuery = `
 		INSERT INTO whatsmeow_contacts (our_jid, their_jid, first_name, full_name)
 		VALUES %s
-		ON CONFLICT (our_jid, their_jid) DO UPDATE SET first_name=excluded.first_name, full_name=excluded.full_name
-	`
+        ON DUPLICATE KEY UPDATE first_name=?, full_name=?
+   `
 	putPushNameQuery = `
-		INSERT INTO whatsmeow_contacts (our_jid, their_jid, push_name) VALUES ($1, $2, $3)
-		ON CONFLICT (our_jid, their_jid) DO UPDATE SET push_name=excluded.push_name
+		INSERT INTO whatsmeow_contacts (our_jid, our_jid_user, their_jid, push_name) VALUES (?, ?, ?, ?)
+		ON DUPLICATE KEY UPDATE push_name=?
 	`
 	putBusinessNameQuery = `
-		INSERT INTO whatsmeow_contacts (our_jid, their_jid, business_name) VALUES ($1, $2, $3)
-		ON CONFLICT (our_jid, their_jid) DO UPDATE SET business_name=excluded.business_name
+		INSERT INTO whatsmeow_contacts (our_jid, their_jid, business_name) VALUES (?, ?, ?)
+		ON DUPLICATE KEY UPDATE business_name=?
 	`
 	getContactQuery = `
-		SELECT first_name, full_name, push_name, business_name FROM whatsmeow_contacts WHERE our_jid=$1 AND their_jid=$2
+		SELECT first_name, full_name, push_name, business_name FROM whatsmeow_contacts WHERE our_jid=? AND their_jid=?
+	`
+
+	getContactQueryByOurJidUserAndTheir = `
+		SELECT first_name, full_name, push_name, business_name FROM whatsmeow_contacts WHERE our_jid_user=? AND their_jid=?
 	`
 	getAllContactsQuery = `
-		SELECT their_jid, first_name, full_name, push_name, business_name FROM whatsmeow_contacts WHERE our_jid=$1
+		SELECT their_jid, first_name, full_name, push_name, business_name FROM whatsmeow_contacts WHERE our_jid=?
 	`
 )
 
@@ -530,7 +524,7 @@ func (s *SQLStore) putContactNamesBatch(tx execable, contacts []store.ContactEnt
 	values := make([]interface{}, 1, 1+len(contacts)*3)
 	queryParts := make([]string, 0, len(contacts))
 	values[0] = s.JID
-	placeholderSyntax := "($1, $%d, $%d, $%d)"
+	placeholderSyntax := "(?, $%d, $%d, $%d)"
 	if s.dialect == "sqlite3" {
 		placeholderSyntax = "(?1, ?%d, ?%d, ?%d)"
 	}
@@ -657,11 +651,11 @@ func (s *SQLStore) GetAllContacts() (map[types.JID]types.ContactInfo, error) {
 
 const (
 	putChatSettingQuery = `
-		INSERT INTO whatsmeow_chat_settings (our_jid, chat_jid, %[1]s) VALUES ($1, $2, $3)
-		ON CONFLICT (our_jid, chat_jid) DO UPDATE SET %[1]s=excluded.%[1]s
+		INSERT INTO whatsmeow_chat_settings (our_jid, chat_jid, %[1]s) VALUES (?, ?, ?)
+		ON DUPLICATE KEY UPDATE %[1]s=?
 	`
 	getChatSettingsQuery = `
-		SELECT muted_until, pinned, archived FROM whatsmeow_chat_settings WHERE our_jid=$1 AND chat_jid=$2
+		SELECT muted_until, pinned, archived FROM whatsmeow_chat_settings WHERE our_jid=? AND chat_jid=?
 	`
 )
 
