@@ -287,7 +287,7 @@ const (
 )
 
 func (s *SQLStore) PutAppStateSyncKey(id []byte, key store.AppStateSyncKey) error {
-	_, err := s.db.Exec(putAppStateSyncKeyQuery, s.JID, id, key.Data, key.Timestamp, key.Fingerprint, key.Data, key.Timestamp, key.Fingerprint
+	_, err := s.db.Exec(putAppStateSyncKeyQuery, s.JID, id, key.Data, key.Timestamp, key.Fingerprint, key.Data, key.Timestamp, key.Fingerprint)
 	return err
 }
 
