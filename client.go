@@ -488,6 +488,14 @@ func (cli *Client) AddEventHandler(handler EventHandler) uint32 {
 	return nextID
 }
 
+func (cli *Client) AddEventHandlerClient(handler EventHandler, newCli *Client) uint32 {
+	nextID := atomic.AddUint32(&nextHandlerID, 1)
+	newCli.eventHandlersLock.Lock()
+	newCli.eventHandlers = append(newCli.eventHandlers, wrappedEventHandler{handler, nextID})
+	newCli.eventHandlersLock.Unlock()
+	return nextID
+}
+
 // RemoveEventHandler removes a previously registered event handler function.
 // If the function with the given ID is found, this returns true.
 //
