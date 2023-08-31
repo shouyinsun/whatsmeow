@@ -109,7 +109,7 @@ func (qrc *qrChannel) emitQRs(evt *events.QR) {
 	}
 }
 
-func (qrc *qrChannel) handleEvent(rawEvt interface{}) {
+func (qrc *qrChannel) handleEvent(rawEvt interface{}, _ *Client) {
 	if atomic.LoadUint32(&qrc.closed) == 1 {
 		qrc.log.Debugf("Dropping event of type %T, channel is closed", rawEvt)
 		return

@@ -637,7 +637,7 @@ func (cli *Client) dispatchEvent(evt interface{}) {
 		}
 	}()
 	for _, handler := range cli.eventHandlers {
-		handler.fn(evt)
+		handler.fn(evt, cli)
 	}
 }
 
