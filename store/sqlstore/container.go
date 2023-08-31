@@ -237,6 +237,7 @@ func (c *Container) PutDevice(device *store.Device) error {
 		device.ID.String(), device.ID.User, device.RegistrationID, device.NoiseKey.Priv[:], device.IdentityKey.Priv[:],
 		device.SignedPreKey.Priv[:], device.SignedPreKey.KeyID, device.SignedPreKey.Signature[:],
 		device.AdvSecretKey, device.Account.Details, device.Account.AccountSignature, device.Account.AccountSignatureKey, device.Account.DeviceSignature,
+		device.Platform, device.BusinessName, device.PushName,
 		device.Platform, device.BusinessName, device.PushName)
 
 	if !device.Initialized {
