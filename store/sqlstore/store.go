@@ -437,7 +437,7 @@ const (
         ON DUPLICATE KEY UPDATE first_name=?, full_name=?
    `
 	putPushNameQuery = `
-		INSERT INTO whatsmeow_contacts (our_jid, our_jid_user, their_jid, push_name) VALUES (?, ?, ?, ?)
+		INSERT INTO whatsmeow_contacts (our_jid, their_jid, push_name) VALUES (?, ?, ?)
 		ON DUPLICATE KEY UPDATE push_name=?
 	`
 	putBusinessNameQuery = `

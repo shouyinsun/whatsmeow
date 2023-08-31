@@ -8,6 +8,7 @@ package sqlstore
 
 import (
 	"database/sql"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	mathRand "math/rand"
@@ -94,8 +95,6 @@ FROM whatsmeow_device
 const getDeviceQuery = getAllDevicesQuery + " WHERE jid=?"
 
 const getDeviceByJidUserQuery = getAllDevicesQuery + " WHERE jid_user=? order by created_time desc limit 1 "
-
-const hasScanQrcode = `select jid FROM whatsmeow_qrcode_record WHERE noise_key_pub=? and identity_key_pub=? and adv_secret_key=? and deleted = 0 `
 
 func (c *Container) GenerateDevice() (*store.Device, error) {
 	return c.NewDevice(), nil
@@ -227,6 +226,17 @@ func (c *Container) NewDevice() *store.Device {
 // ErrDeviceIDMustBeSet is the error returned by PutDevice if you try to save a device before knowing its JID.
 var ErrDeviceIDMustBeSet = errors.New("device JID must be known before accessing database")
 
+const (
+	insertQrcodeRecord = `
+		INSERT INTO whatsmeow_qrcode_record (jid, noise_key_pub,identity_key_pub,adv_secret_key,scan_state)
+		VALUES (?, ?, ?, ?, ?)
+	`
+	hasScanQrcode = `select jid FROM whatsmeow_qrcode_record WHERE noise_key_pub=? and identity_key_pub=? and adv_secret_key=? and deleted = 0 `
+
+	deleteQrcodeRecord = `update whatsmeow_qrcode_record set deleted = 1 where
+      identity_key_pub=? and identity_key_pub=? and adv_secret_key=?`
+)
+
 // PutDevice stores the given device in this database. This should be called through Device.Save()
 // (which usually doesn't need to be called manually, as the library does that automatically when relevant).
 func (c *Container) PutDevice(device *store.Device) error {
@@ -239,6 +249,13 @@ func (c *Container) PutDevice(device *store.Device) error {
 		device.AdvSecretKey, device.Account.Details, device.Account.AccountSignature, device.Account.AccountSignatureKey, device.Account.DeviceSignature,
 		device.Platform, device.BusinessName, device.PushName,
 		device.Platform, device.BusinessName, device.PushName)
+
+	//save qrcode scan result
+	noiseKeyPub, identityKeyPub, advKey := baseEncodeKeys(device)
+	_, err = c.db.Exec(insertQrcodeRecord, device.ID.String(), noiseKeyPub, identityKeyPub, advKey, 1)
+	if err != nil {
+		fmt.Println("Save qrcode result fail ")
+	}
 
 	if !device.Initialized {
 		innerStore := NewSQLStore(c, *device.ID)
@@ -255,6 +272,13 @@ func (c *Container) PutDevice(device *store.Device) error {
 		device.Initialized = true
 	}
 	return err
+}
+
+func baseEncodeKeys(device *store.Device) (nkp, ikp, ak string) {
+	noiseKeyPub := base64.StdEncoding.EncodeToString(device.NoiseKey.Pub[:])
+	identityKeyPub := base64.StdEncoding.EncodeToString(device.IdentityKey.Pub[:])
+	advKey := base64.StdEncoding.EncodeToString(device.AdvSecretKey)
+	return noiseKeyPub, identityKeyPub, advKey
 }
 
 // DeleteDevice deletes the given device from this database. This should be called through Device.Delete()
