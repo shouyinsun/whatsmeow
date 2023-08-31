@@ -76,7 +76,7 @@ const (
 )
 
 func (s *SQLStore) PutIdentity(address string, key [32]byte) error {
-	_, err := s.db.Exec(putIdentityQuery, s.JID, address, key[:])
+	_, err := s.db.Exec(putIdentityQuery, s.JID, address, key[:], key[:])
 	return err
 }
 
@@ -132,7 +132,7 @@ func (s *SQLStore) HasSession(address string) (has bool, err error) {
 }
 
 func (s *SQLStore) PutSession(address string, session []byte) error {
-	_, err := s.db.Exec(putSessionQuery, s.JID, address, session)
+	_, err := s.db.Exec(putSessionQuery, s.JID, address, session, session)
 	return err
 }
 
@@ -265,7 +265,7 @@ const (
 )
 
 func (s *SQLStore) PutSenderKey(group, user string, session []byte) error {
-	_, err := s.db.Exec(putSenderKeyQuery, s.JID, group, user, session)
+	_, err := s.db.Exec(putSenderKeyQuery, s.JID, group, user, session, session)
 	return err
 }
 
@@ -287,7 +287,7 @@ const (
 )
 
 func (s *SQLStore) PutAppStateSyncKey(id []byte, key store.AppStateSyncKey) error {
-	_, err := s.db.Exec(putAppStateSyncKeyQuery, s.JID, id, key.Data, key.Timestamp, key.Fingerprint)
+	_, err := s.db.Exec(putAppStateSyncKeyQuery, s.JID, id, key.Data, key.Timestamp, key.Fingerprint, key.Data, key.Timestamp, key.Fingerprint
 	return err
 }
 
@@ -323,7 +323,7 @@ const (
 )
 
 func (s *SQLStore) PutAppStateVersion(name string, version uint64, hash [128]byte) error {
-	_, err := s.db.Exec(putAppStateVersionQuery, s.JID, name, version, hash[:])
+	_, err := s.db.Exec(putAppStateVersionQuery, s.JID, name, version, hash[:], version, hash[:])
 	return err
 }
 
@@ -465,7 +465,7 @@ func (s *SQLStore) PutPushName(user types.JID, pushName string) (bool, string, e
 		return false, "", err
 	}
 	if cached.PushName != pushName {
-		_, err = s.db.Exec(putPushNameQuery, s.JID, user, pushName)
+		_, err = s.db.Exec(putPushNameQuery, s.JID, user, pushName, pushName)
 		if err != nil {
 			return false, "", err
 		}
@@ -486,7 +486,7 @@ func (s *SQLStore) PutBusinessName(user types.JID, businessName string) (bool, s
 		return false, "", err
 	}
 	if cached.BusinessName != businessName {
-		_, err = s.db.Exec(putBusinessNameQuery, s.JID, user, businessName)
+		_, err = s.db.Exec(putBusinessNameQuery, s.JID, user, businessName, businessName)
 		if err != nil {
 			return false, "", err
 		}
@@ -507,7 +507,7 @@ func (s *SQLStore) PutContactName(user types.JID, firstName, fullName string) er
 		return err
 	}
 	if cached.FirstName != firstName || cached.FullName != fullName {
-		_, err = s.db.Exec(putContactNameQuery, s.JID, user, firstName, fullName)
+		_, err = s.db.Exec(putContactNameQuery, s.JID, user, firstName, fullName, firstName, fullName)
 		if err != nil {
 			return err
 		}
