@@ -33,7 +33,10 @@ import (
 )
 
 // EventHandler is a function that can handle events from WhatsApp.
-type EventHandler func(evt interface{})
+//type EventHandler func(evt interface{})
+
+type EventHandler func(evt interface{}, newCli *Client)
+
 type nodeHandler func(node *waBinary.Node)
 
 var nextHandlerID uint32
@@ -485,14 +488,6 @@ func (cli *Client) AddEventHandler(handler EventHandler) uint32 {
 	cli.eventHandlersLock.Lock()
 	cli.eventHandlers = append(cli.eventHandlers, wrappedEventHandler{handler, nextID})
 	cli.eventHandlersLock.Unlock()
-	return nextID
-}
-
-func (cli *Client) AddEventHandlerClient(handler EventHandler, newCli *Client) uint32 {
-	nextID := atomic.AddUint32(&nextHandlerID, 1)
-	newCli.eventHandlersLock.Lock()
-	newCli.eventHandlers = append(newCli.eventHandlers, wrappedEventHandler{handler, nextID})
-	newCli.eventHandlersLock.Unlock()
 	return nextID
 }
 
