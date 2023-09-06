@@ -329,7 +329,7 @@ func (c *Container) HasScanQrcode(noiseKeyPub, identityKeyPub, advSecret string)
 
 const (
 	insertCheckUserRecord = `
-		INSERT INTO whatsmeow_device (phone, check_result)
+		INSERT INTO whatsmeow_check_user_record (phone, check_result)
 		VALUES (?, ?)
 		ON DUPLICATE KEY UPDATE result=?`
 )
