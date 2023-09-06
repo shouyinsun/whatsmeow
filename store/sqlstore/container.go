@@ -331,7 +331,7 @@ const (
 	insertCheckUserRecord = `
 		INSERT INTO whatsmeow_check_user_record (phone, check_result)
 		VALUES (?, ?)
-		ON DUPLICATE KEY UPDATE result=?`
+		ON DUPLICATE KEY UPDATE check_result=?`
 )
 
 // PutCheckUser 保存检测用户结果
