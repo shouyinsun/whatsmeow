@@ -88,7 +88,7 @@ const getAllDevicesQuery = `
 SELECT jid, biz_type, registration_id, noise_key, identity_key,
        signed_pre_key, signed_pre_key_id, signed_pre_key_sig,
        adv_key, adv_details, adv_account_sig, adv_account_sig_key, adv_device_sig,
-       platform, business_name, push_name
+       platform, business_name, push_name, subject_id, enable
 FROM whatsmeow_device
 `
 
@@ -116,7 +116,7 @@ func (c *Container) scanDevice(row scannable) (*store.Device, error) {
 		&device.ID, &device.RegistrationID, &noisePriv, &identityPriv,
 		&preKeyPriv, &device.SignedPreKey.KeyID, &preKeySig,
 		&device.AdvSecretKey, &account.Details, &account.AccountSignature, &account.AccountSignatureKey, &account.DeviceSignature,
-		&device.Platform, &device.BusinessName, &device.PushName)
+		&device.Platform, &device.BusinessName, &device.PushName, &device.SubjectId, &device.Enable)
 	if err != nil {
 		return nil, fmt.Errorf("failed to scan session: %w", err)
 	} else if len(noisePriv) != 32 || len(identityPriv) != 32 || len(preKeyPriv) != 32 || len(preKeySig) != 64 {
@@ -196,11 +196,14 @@ const (
 		INSERT INTO whatsmeow_device (jid, jid_user, registration_id, noise_key, identity_key,
 									  signed_pre_key, signed_pre_key_id, signed_pre_key_sig,
 									  adv_key, adv_details, adv_account_sig, adv_account_sig_key, adv_device_sig,
-									  platform, business_name, push_name)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-		ON DUPLICATE KEY UPDATE platform=?, business_name=?, push_name=?
+									  platform, business_name, push_name, subject_id, enable)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON DUPLICATE KEY UPDATE jid=?, platform=?, business_name=?, push_name=?
 	`
 	deleteDeviceQuery = `DELETE FROM whatsmeow_device WHERE jid=?`
+
+	disableDeviceQuery = `update whatsmeow_device set enable = 0 where
+      jid_user=? and subject_id=?`
 )
 
 // NewDevice creates a new device in this database.
@@ -236,8 +239,8 @@ func (c *Container) PutDevice(device *store.Device) error {
 		device.ID.String(), device.ID.User, device.RegistrationID, device.NoiseKey.Priv[:], device.IdentityKey.Priv[:],
 		device.SignedPreKey.Priv[:], device.SignedPreKey.KeyID, device.SignedPreKey.Signature[:],
 		device.AdvSecretKey, device.Account.Details, device.Account.AccountSignature, device.Account.AccountSignatureKey, device.Account.DeviceSignature,
-		device.Platform, device.BusinessName, device.PushName,
-		device.Platform, device.BusinessName, device.PushName)
+		device.Platform, device.BusinessName, device.PushName, device.SubjectId, 1,
+		device.ID.String(), device.Platform, device.BusinessName, device.PushName)
 
 	//save qrcode scan result
 	noiseKeyPub, identityKeyPub, advKey := baseEncodeKeys(device)
@@ -276,6 +279,15 @@ func (c *Container) DeleteDevice(store *store.Device) error {
 		return ErrDeviceIDMustBeSet
 	}
 	_, err := c.db.Exec(deleteDeviceQuery, store.ID.String())
+	return err
+}
+
+// DisableSubjectDeviceByJidUser 停用用户指定账号的设备
+func (c *Container) DisableSubjectDeviceByJidUser(store *store.Device) error {
+	if store.ID == nil {
+		return ErrDeviceIDMustBeSet
+	}
+	_, err := c.db.Exec(disableDeviceQuery, store.ID.User, store.SubjectId)
 	return err
 }
 
