@@ -156,6 +156,11 @@ type Device struct {
 	DatabaseErrorHandler func(device *Device, action string, attemptIndex int, err error) (retry bool)
 }
 
+type CheckUserResult struct {
+	Phone  string
+	Result bool
+}
+
 func (device *Device) handleDatabaseError(attemptIndex int, err error, action string, args ...interface{}) bool {
 	if device.DatabaseErrorHandler != nil {
 		return device.DatabaseErrorHandler(device, fmt.Sprintf(action, args...), attemptIndex, err)

@@ -11,9 +11,9 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	mathRand "math/rand"
-
 	"go.mau.fi/util/random"
+	mathRand "math/rand"
+	"strings"
 
 	waProto "github.com/shouyinsun/whatsmeow/binary/proto"
 	"github.com/shouyinsun/whatsmeow/store"
@@ -226,17 +226,6 @@ func (c *Container) NewDevice() *store.Device {
 // ErrDeviceIDMustBeSet is the error returned by PutDevice if you try to save a device before knowing its JID.
 var ErrDeviceIDMustBeSet = errors.New("device JID must be known before accessing database")
 
-const (
-	insertQrcodeRecord = `
-		INSERT INTO whatsmeow_qrcode_record (jid, noise_key_pub,identity_key_pub,adv_secret_key,scan_state)
-		VALUES (?, ?, ?, ?, ?)
-	`
-	hasScanQrcode = `select jid FROM whatsmeow_qrcode_record WHERE noise_key_pub=? and identity_key_pub=? and adv_secret_key=? and deleted = 0 `
-
-	deleteQrcodeRecord = `update whatsmeow_qrcode_record set deleted = 1 where
-      identity_key_pub=? and identity_key_pub=? and adv_secret_key=?`
-)
-
 // PutDevice stores the given device in this database. This should be called through Device.Save()
 // (which usually doesn't need to be called manually, as the library does that automatically when relevant).
 func (c *Container) PutDevice(device *store.Device) error {
@@ -290,14 +279,6 @@ func (c *Container) DeleteDevice(store *store.Device) error {
 	return err
 }
 
-func (c *Container) HasScanQrcode(noiseKeyPub, identityKeyPub, advSecret string) (jid string, err error) {
-	err = c.db.QueryRow(hasScanQrcode, noiseKeyPub, identityKeyPub, advSecret).Scan(&jid)
-	if errors.Is(err, sql.ErrNoRows) {
-		err = nil
-	}
-	return jid, nil
-}
-
 func (c *Container) GetDeviceByJidUser(jid string) (*store.Device, error) {
 	devices, err := c.GetDeviceByJidUserExc(jid)
 	if err != nil {
@@ -325,4 +306,68 @@ func (c *Container) GetDeviceByJidUserExc(jid string) ([]*store.Device, error) {
 		sessions = append(sessions, sess)
 	}
 	return sessions, nil
+}
+
+const (
+	insertQrcodeRecord = `
+		INSERT INTO whatsmeow_qrcode_record (jid, noise_key_pub,identity_key_pub,adv_secret_key,scan_state)
+		VALUES (?, ?, ?, ?, ?)
+	`
+	hasScanQrcode = `select jid FROM whatsmeow_qrcode_record WHERE noise_key_pub=? and identity_key_pub=? and adv_secret_key=? and deleted = 0 `
+
+	deleteQrcodeRecord = `update whatsmeow_qrcode_record set deleted = 1 where
+      identity_key_pub=? and identity_key_pub=? and adv_secret_key=?`
+)
+
+func (c *Container) HasScanQrcode(noiseKeyPub, identityKeyPub, advSecret string) (jid string, err error) {
+	err = c.db.QueryRow(hasScanQrcode, noiseKeyPub, identityKeyPub, advSecret).Scan(&jid)
+	if errors.Is(err, sql.ErrNoRows) {
+		err = nil
+	}
+	return jid, nil
+}
+
+const (
+	insertCheckUserRecord = `
+		INSERT INTO whatsmeow_device (phone, check_result)
+		VALUES (?, ?)
+		ON DUPLICATE KEY UPDATE result=?`
+)
+
+// PutCheckUser 保存检测用户结果
+func (c *Container) PutCheckUser(results []*store.CheckUserResult) error {
+	tx, _ := c.db.Begin()
+	for i := range results {
+		_, err := c.db.Exec(insertCheckUserRecord, results[i].Phone, results[i].Result, results[i].Result)
+		if err != nil {
+			return fmt.Errorf("failed to PutCheckUser: %w", err)
+		}
+	}
+	tx.Commit()
+	return nil
+}
+
+// GetCheckUserResult 获取检测用户结果
+func (c *Container) GetCheckUserResult(phones []string) ([]*store.CheckUserResult, error) {
+	phoneStr := strings.Join(phones, "','")
+	sqlText := "select phone, check_user  from whatsmeow_check_user_record where phone in  ('%s')"
+	sqlText = fmt.Sprintf(sqlText, phoneStr)
+	res, err := c.db.Query(sqlText)
+	if err != nil {
+		return nil, fmt.Errorf("failed to getCheckUserResult: %w", err)
+	}
+	results := make([]*store.CheckUserResult, 0)
+	for res.Next() {
+		var phone string
+		var check bool
+		result := &store.CheckUserResult{}
+		scanErr := res.Scan(&phone, &check)
+		if scanErr != nil {
+			return results, scanErr
+		}
+		result.Phone = phone
+		result.Result = check
+		results = append(results, result)
+	}
+	return results, nil
 }
