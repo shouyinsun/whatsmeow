@@ -350,7 +350,7 @@ func (c *Container) PutCheckUser(results []*store.CheckUserResult) error {
 // GetCheckUserResult 获取检测用户结果
 func (c *Container) GetCheckUserResult(phones []string) ([]*store.CheckUserResult, error) {
 	phoneStr := strings.Join(phones, "','")
-	sqlText := "select phone, check_user  from whatsmeow_check_user_record where phone in  ('%s')"
+	sqlText := "select phone, check_result  from whatsmeow_check_user_record where phone in  ('%s')"
 	sqlText = fmt.Sprintf(sqlText, phoneStr)
 	res, err := c.db.Query(sqlText)
 	if err != nil {
