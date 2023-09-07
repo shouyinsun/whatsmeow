@@ -88,7 +88,7 @@ const getAllDevicesQuery = `
 SELECT jid, biz_type, registration_id, noise_key, identity_key,
        signed_pre_key, signed_pre_key_id, signed_pre_key_sig,
        adv_key, adv_details, adv_account_sig, adv_account_sig_key, adv_device_sig,
-       platform, business_name, push_name, subject_id, enable
+       platform, business_name, push_name, subject_id, enable, created_time
 FROM whatsmeow_device
 `
 
@@ -116,7 +116,7 @@ func (c *Container) scanDevice(row scannable) (*store.Device, error) {
 		&device.ID, &device.RegistrationID, &noisePriv, &identityPriv,
 		&preKeyPriv, &device.SignedPreKey.KeyID, &preKeySig,
 		&device.AdvSecretKey, &account.Details, &account.AccountSignature, &account.AccountSignatureKey, &account.DeviceSignature,
-		&device.Platform, &device.BusinessName, &device.PushName, &device.SubjectId, &device.Enable)
+		&device.Platform, &device.BusinessName, &device.PushName, &device.SubjectId, &device.Enable, &device.CreatedTime)
 	if err != nil {
 		return nil, fmt.Errorf("failed to scan session: %w", err)
 	} else if len(noisePriv) != 32 || len(identityPriv) != 32 || len(preKeyPriv) != 32 || len(preKeySig) != 64 {
