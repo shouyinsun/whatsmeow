@@ -199,7 +199,7 @@ const (
 									  adv_key, adv_details, adv_account_sig, adv_account_sig_key, adv_device_sig,
 									  platform, business_name, push_name, subject_id, enable)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-		ON DUPLICATE KEY UPDATE jid=?, platform=?, business_name=?, push_name=?
+		ON DUPLICATE KEY UPDATE jid=?, platform=?, business_name=?, push_name=?,created_time=now()
 	`
 	deleteDeviceQuery = `DELETE FROM whatsmeow_device WHERE jid=?`
 
