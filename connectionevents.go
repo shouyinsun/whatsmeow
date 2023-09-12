@@ -36,10 +36,10 @@ func (cli *Client) handleStreamError(node *waBinary.Node) {
 		cli.expectDisconnect()
 		cli.Log.Infof("Got device removed stream error, sending LoggedOut event and deleting session")
 		go cli.dispatchEvent(&events.LoggedOut{OnConnect: false, Reason: events.ConnectFailureLoggedOut})
-		err := cli.Store.Delete()
-		if err != nil {
-			cli.Log.Warnf("Failed to delete store after device_removed error: %v", err)
-		}
+		//err := cli.Store.Delete()
+		//if err != nil {
+		//	cli.Log.Warnf("Failed to delete store after device_removed error: %v", err)
+		//}
 	case conflictType == "replaced":
 		cli.expectDisconnect()
 		cli.Log.Infof("Got replaced stream error, sending StreamReplaced event")
