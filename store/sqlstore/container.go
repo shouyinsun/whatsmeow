@@ -205,6 +205,9 @@ const (
 
 	disableDeviceQuery = `update whatsmeow_device set enable = 0 where
       jid_user=? and subject_id=?`
+
+	enableDeviceQuery = `update whatsmeow_device set enable = 1 where
+      jid_user=? and subject_id=?`
 )
 
 // NewDevice creates a new device in this database.
@@ -279,8 +282,8 @@ func (c *Container) DeleteDevice(store *store.Device) error {
 	if store.ID == nil {
 		return ErrDeviceIDMustBeSet
 	}
-	_, err := c.db.Exec(deleteDeviceQuery, store.ID.String())
-	return err
+	//_, err := c.db.Exec(deleteDeviceQuery, store.ID.String())
+	return nil
 }
 
 // DisableSubjectDeviceByJidUser 停用用户指定账号的设备
@@ -289,6 +292,15 @@ func (c *Container) DisableSubjectDeviceByJidUser(store *store.Device) error {
 		return ErrDeviceIDMustBeSet
 	}
 	_, err := c.db.Exec(disableDeviceQuery, store.ID.User, store.SubjectId)
+	return err
+}
+
+// EnableSubjectDeviceByJidUser 启用用户指定账号的设备
+func (c *Container) EnableSubjectDeviceByJidUser(store *store.Device) error {
+	if store.ID == nil {
+		return ErrDeviceIDMustBeSet
+	}
+	_, err := c.db.Exec(enableDeviceQuery, store.ID.User, store.SubjectId)
 	return err
 }
 
