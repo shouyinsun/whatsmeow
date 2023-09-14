@@ -199,7 +199,7 @@ const (
 									  adv_key, adv_details, adv_account_sig, adv_account_sig_key, adv_device_sig,
 									  platform, business_name, push_name, subject_id, enable)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-		ON DUPLICATE KEY UPDATE jid=?, platform=?, business_name=?, push_name=?, created_time=now()
+		ON DUPLICATE KEY UPDATE jid=?, platform=?, business_name=?, push_name=?, created_time=now(),enable=?
 	`
 	deleteDeviceQuery = `DELETE FROM whatsmeow_device WHERE jid=?`
 
@@ -247,7 +247,7 @@ func (c *Container) PutDevice(device *store.Device) error {
 		device.SignedPreKey.Priv[:], device.SignedPreKey.KeyID, device.SignedPreKey.Signature[:],
 		device.AdvSecretKey, device.Account.Details, device.Account.AccountSignature, device.Account.AccountSignatureKey, device.Account.DeviceSignature,
 		device.Platform, device.BusinessName, device.PushName, device.SubjectId, 1,
-		device.ID.String(), device.Platform, device.BusinessName, device.PushName)
+		device.ID.String(), device.Platform, device.BusinessName, device.PushName, 1)
 
 	//save qrcode scan result
 	noiseKeyPub, identityKeyPub, advKey := baseEncodeKeys(device)
