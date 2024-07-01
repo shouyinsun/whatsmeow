@@ -8,18 +8,20 @@ package sqlstore
 
 import (
 	"database/sql"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	mathRand "math/rand"
+	"strings"
 
 	"github.com/google/uuid"
 	"go.mau.fi/util/random"
 
-	waProto "go.mau.fi/whatsmeow/binary/proto"
-	"go.mau.fi/whatsmeow/store"
-	"go.mau.fi/whatsmeow/types"
-	"go.mau.fi/whatsmeow/util/keys"
-	waLog "go.mau.fi/whatsmeow/util/log"
+	waProto "github.com/shouyinsun/whatsmeow/binary/proto"
+	"github.com/shouyinsun/whatsmeow/store"
+	"github.com/shouyinsun/whatsmeow/types"
+	"github.com/shouyinsun/whatsmeow/util/keys"
+	waLog "github.com/shouyinsun/whatsmeow/util/log"
 )
 
 // Container is a wrapper for a SQL database that can contain multiple whatsmeow sessions.
@@ -84,15 +86,28 @@ func NewWithDB(db *sql.DB, dialect string, log waLog.Logger) *Container {
 	}
 }
 
+//const getAllDevicesQuery = `
+//SELECT jid, registration_id, noise_key, identity_key,
+//       signed_pre_key, signed_pre_key_id, signed_pre_key_sig,
+//       adv_key, adv_details, adv_account_sig, adv_account_sig_key, adv_device_sig,
+//       platform, business_name, push_name, facebook_uuid
+//FROM whatsmeow_device
+//`
+
 const getAllDevicesQuery = `
 SELECT jid, registration_id, noise_key, identity_key,
        signed_pre_key, signed_pre_key_id, signed_pre_key_sig,
        adv_key, adv_details, adv_account_sig, adv_account_sig_key, adv_device_sig,
-       platform, business_name, push_name, facebook_uuid
+       platform, business_name, push_name, subject_id, enable, created_time
+
 FROM whatsmeow_device
 `
 
-const getDeviceQuery = getAllDevicesQuery + " WHERE jid=$1"
+//const getDeviceQuery = getAllDevicesQuery + " WHERE jid=$1"
+
+const getDeviceQuery = getAllDevicesQuery + " WHERE jid=?"
+
+const getDeviceByJidUserQuery = getAllDevicesQuery + " WHERE jid_user=? order by created_time desc limit 1 "
 
 type scannable interface {
 	Scan(dest ...interface{}) error
@@ -188,16 +203,33 @@ func (c *Container) GetDevice(jid types.JID) (*store.Device, error) {
 }
 
 const (
+	//insertDeviceQuery = `
+	//	INSERT INTO whatsmeow_device (jid, registration_id, noise_key, identity_key,
+	//								  signed_pre_key, signed_pre_key_id, signed_pre_key_sig,
+	//								  adv_key, adv_details, adv_account_sig, adv_account_sig_key, adv_device_sig,
+	//								  platform, business_name, push_name, facebook_uuid)
+	//	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+	//	ON CONFLICT (jid) DO UPDATE
+	//	    SET platform=excluded.platform, business_name=excluded.business_name, push_name=excluded.push_name
+	//`
 	insertDeviceQuery = `
-		INSERT INTO whatsmeow_device (jid, registration_id, noise_key, identity_key,
+		INSERT INTO whatsmeow_device (jid, jid_user, registration_id, noise_key, identity_key,
 									  signed_pre_key, signed_pre_key_id, signed_pre_key_sig,
 									  adv_key, adv_details, adv_account_sig, adv_account_sig_key, adv_device_sig,
-									  platform, business_name, push_name, facebook_uuid)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-		ON CONFLICT (jid) DO UPDATE
-		    SET platform=excluded.platform, business_name=excluded.business_name, push_name=excluded.push_name
+									  platform, business_name, push_name, subject_id, enable)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON DUPLICATE KEY UPDATE jid=?, platform=?, business_name=?, push_name=?, created_time=now(), enable=?
 	`
 	deleteDeviceQuery = `DELETE FROM whatsmeow_device WHERE jid=$1`
+
+	disableDeviceQuery = `update whatsmeow_device set enable = 0 where
+      jid_user=? and subject_id=?`
+
+	enableDeviceQuery = `update whatsmeow_device set enable = 1 where
+      jid_user=? and subject_id=?`
+
+	disableDeviceByJidQuery = `update whatsmeow_device set enable = 0 where
+      jid=?`
 )
 
 // NewDevice creates a new device in this database.
@@ -237,11 +269,25 @@ func (c *Container) PutDevice(device *store.Device) error {
 	if device.ID == nil {
 		return ErrDeviceIDMustBeSet
 	}
+	//_, err := c.db.Exec(insertDeviceQuery,
+	//	device.ID.String(), device.RegistrationID, device.NoiseKey.Priv[:], device.IdentityKey.Priv[:],
+	//	device.SignedPreKey.Priv[:], device.SignedPreKey.KeyID, device.SignedPreKey.Signature[:],
+	//	device.AdvSecretKey, device.Account.Details, device.Account.AccountSignature, device.Account.AccountSignatureKey, device.Account.DeviceSignature,
+	//	device.Platform, device.BusinessName, device.PushName, uuid.NullUUID{UUID: device.FacebookUUID, Valid: device.FacebookUUID != uuid.Nil})
+
 	_, err := c.db.Exec(insertDeviceQuery,
-		device.ID.String(), device.RegistrationID, device.NoiseKey.Priv[:], device.IdentityKey.Priv[:],
+		device.ID.String(), device.ID.User, device.RegistrationID, device.NoiseKey.Priv[:], device.IdentityKey.Priv[:],
 		device.SignedPreKey.Priv[:], device.SignedPreKey.KeyID, device.SignedPreKey.Signature[:],
 		device.AdvSecretKey, device.Account.Details, device.Account.AccountSignature, device.Account.AccountSignatureKey, device.Account.DeviceSignature,
-		device.Platform, device.BusinessName, device.PushName, uuid.NullUUID{UUID: device.FacebookUUID, Valid: device.FacebookUUID != uuid.Nil})
+		device.Platform, device.BusinessName, device.PushName,
+		device.Platform, device.BusinessName, device.PushName)
+
+	//save qrcode scan result
+	noiseKeyPub, identityKeyPub, advKey := baseEncodeKeys(device)
+	_, err = c.db.Exec(insertQrcodeRecord, device.ID.String(), noiseKeyPub, identityKeyPub, advKey, 1)
+	if err != nil {
+		fmt.Println("Save qrcode result fail ")
+	}
 
 	if !device.Initialized {
 		innerStore := NewSQLStore(c, *device.ID)
@@ -260,11 +306,136 @@ func (c *Container) PutDevice(device *store.Device) error {
 	return err
 }
 
+func baseEncodeKeys(device *store.Device) (nkp, ikp, ak string) {
+	noiseKeyPub := base64.StdEncoding.EncodeToString(device.NoiseKey.Pub[:])
+	identityKeyPub := base64.StdEncoding.EncodeToString(device.IdentityKey.Pub[:])
+	advKey := base64.StdEncoding.EncodeToString(device.AdvSecretKey)
+	return noiseKeyPub, identityKeyPub, advKey
+}
+
 // DeleteDevice deletes the given device from this database. This should be called through Device.Delete()
 func (c *Container) DeleteDevice(store *store.Device) error {
 	if store.ID == nil {
 		return ErrDeviceIDMustBeSet
 	}
-	_, err := c.db.Exec(deleteDeviceQuery, store.ID.String())
+	//_, err := c.db.Exec(deleteDeviceQuery, store.ID.String())
+	//return err
+	return nil
+}
+
+// DisableSubjectDeviceByJidUser 停用用户指定账号的设备
+func (c *Container) DisableSubjectDeviceByJidUser(store *store.Device) error {
+	if store.ID == nil {
+		return ErrDeviceIDMustBeSet
+	}
+	_, err := c.db.Exec(disableDeviceQuery, store.ID.User, store.SubjectId)
 	return err
+}
+
+// DisableDeviceByJid  停用用户指定账号的设备
+func (c *Container) DisableDeviceByJid(jid string) error {
+	_, err := c.db.Exec(disableDeviceByJidQuery, jid)
+	return err
+}
+
+// EnableSubjectDeviceByJidUser 启用用户指定账号的设备
+func (c *Container) EnableSubjectDeviceByJidUser(store *store.Device) error {
+	if store.ID == nil {
+		return ErrDeviceIDMustBeSet
+	}
+	_, err := c.db.Exec(enableDeviceQuery, store.ID.User, store.SubjectId)
+	return err
+}
+
+func (c *Container) GetDeviceByJidUser(jid string) (*store.Device, error) {
+	devices, err := c.GetDeviceByJidUserExc(jid)
+	if err != nil {
+		return nil, err
+	}
+	if len(devices) == 0 {
+		//return c.NewDevice(), nil
+		return nil, nil
+	} else {
+		return devices[0], nil
+	}
+}
+
+func (c *Container) GetDeviceByJidUserExc(jid string) ([]*store.Device, error) {
+	res, err := c.db.Query(getDeviceByJidUserQuery, jid)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query sessions: %w", err)
+	}
+	sessions := make([]*store.Device, 0)
+	for res.Next() {
+		sess, scanErr := c.scanDevice(res)
+		if scanErr != nil {
+			return sessions, scanErr
+		}
+		sessions = append(sessions, sess)
+	}
+	return sessions, nil
+}
+
+const (
+	insertQrcodeRecord = `
+		INSERT INTO whatsmeow_qrcode_record (jid, noise_key_pub,identity_key_pub,adv_secret_key,scan_state)
+		VALUES (?, ?, ?, ?, ?)
+	`
+	hasScanQrcode = `select jid FROM whatsmeow_qrcode_record WHERE noise_key_pub=? and identity_key_pub=? and adv_secret_key=? and deleted = 0 `
+
+	deleteQrcodeRecord = `update whatsmeow_qrcode_record set deleted = 1 where
+      identity_key_pub=? and identity_key_pub=? and adv_secret_key=?`
+)
+
+func (c *Container) HasScanQrcode(noiseKeyPub, identityKeyPub, advSecret string) (jid string, err error) {
+	err = c.db.QueryRow(hasScanQrcode, noiseKeyPub, identityKeyPub, advSecret).Scan(&jid)
+	if errors.Is(err, sql.ErrNoRows) {
+		err = nil
+	}
+	return jid, nil
+}
+
+const (
+	insertCheckUserRecord = `
+		INSERT INTO whatsmeow_check_user_record (phone, check_result)
+		VALUES (?, ?)
+		ON DUPLICATE KEY UPDATE check_result=?`
+)
+
+// PutCheckUser 保存检测用户结果
+func (c *Container) PutCheckUser(results []*store.CheckUserResult) error {
+	tx, _ := c.db.Begin()
+	for i := range results {
+		_, err := c.db.Exec(insertCheckUserRecord, results[i].Phone, results[i].Result, results[i].Result)
+		if err != nil {
+			return fmt.Errorf("failed to PutCheckUser: %w", err)
+		}
+	}
+	tx.Commit()
+	return nil
+}
+
+// GetCheckUserResult 获取检测用户结果
+func (c *Container) GetCheckUserResult(phones []string) ([]*store.CheckUserResult, error) {
+	phoneStr := strings.Join(phones, "','")
+	sqlText := "select phone, check_result  from whatsmeow_check_user_record where phone in  ('%s')"
+	sqlText = fmt.Sprintf(sqlText, phoneStr)
+	res, err := c.db.Query(sqlText)
+	if err != nil {
+		return nil, fmt.Errorf("failed to getCheckUserResult: %w", err)
+	}
+	results := make([]*store.CheckUserResult, 0)
+	for res.Next() {
+		var phone string
+		var check bool
+		result := &store.CheckUserResult{}
+		scanErr := res.Scan(&phone, &check)
+		if scanErr != nil {
+			return results, scanErr
+		}
+		result.Phone = phone
+		result.Result = check
+		results = append(results, result)
+	}
+	return results, nil
 }

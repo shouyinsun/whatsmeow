@@ -20,10 +20,10 @@ type upgradeFunc func(*sql.Tx, *Container) error
 var Upgrades = [...]upgradeFunc{upgradeV1, upgradeV2, upgradeV3, upgradeV4, upgradeV5, upgradeV6}
 
 func (c *Container) getVersion() (int, error) {
-	_, err := c.db.Exec("CREATE TABLE IF NOT EXISTS whatsmeow_version (version INTEGER)")
-	if err != nil {
-		return -1, err
-	}
+	//_, err := c.db.Exec("CREATE TABLE IF NOT EXISTS whatsmeow_version (version INTEGER)")
+	//if err != nil {
+	//	return -1, err
+	//}
 
 	version := 0
 	row := c.db.QueryRow("SELECT version FROM whatsmeow_version LIMIT 1")

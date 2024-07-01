@@ -12,8 +12,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"go.mau.fi/whatsmeow/types/events"
-	waLog "go.mau.fi/whatsmeow/util/log"
+	"github.com/shouyinsun/whatsmeow/types/events"
+	waLog "github.com/shouyinsun/whatsmeow/util/log"
 )
 
 type QRChannelItem struct {
@@ -109,7 +109,7 @@ func (qrc *qrChannel) emitQRs(evt *events.QR) {
 	}
 }
 
-func (qrc *qrChannel) handleEvent(rawEvt interface{}) {
+func (qrc *qrChannel) handleEvent(rawEvt interface{}, _ *Client) {
 	if atomic.LoadUint32(&qrc.closed) == 1 {
 		qrc.log.Debugf("Dropping event of type %T, channel is closed", rawEvt)
 		return

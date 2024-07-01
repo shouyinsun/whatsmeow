@@ -13,10 +13,10 @@ import (
 
 	"github.com/google/uuid"
 
-	waProto "go.mau.fi/whatsmeow/binary/proto"
-	"go.mau.fi/whatsmeow/types"
-	"go.mau.fi/whatsmeow/util/keys"
-	waLog "go.mau.fi/whatsmeow/util/log"
+	waProto "github.com/shouyinsun/whatsmeow/binary/proto"
+	"github.com/shouyinsun/whatsmeow/types"
+	"github.com/shouyinsun/whatsmeow/util/keys"
+	waLog "github.com/shouyinsun/whatsmeow/util/log"
 )
 
 type IdentityStore interface {
@@ -127,7 +127,11 @@ type PrivacyTokenStore interface {
 }
 
 type Device struct {
-	Log waLog.Logger
+	Log         waLog.Logger
+	BizType     string
+	SubjectId   string
+	Enable      bool
+	CreatedTime time.Time
 
 	NoiseKey       *keys.KeyPair
 	IdentityKey    *keys.KeyPair
@@ -157,6 +161,11 @@ type Device struct {
 	Container     DeviceContainer
 
 	DatabaseErrorHandler func(device *Device, action string, attemptIndex int, err error) (retry bool)
+}
+
+type CheckUserResult struct {
+	Phone  string
+	Result bool
 }
 
 func (device *Device) handleDatabaseError(attemptIndex int, err error, action string, args ...interface{}) bool {
