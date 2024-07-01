@@ -223,6 +223,41 @@ func (cli *Client) dispatchAppState(mutation appstate.Mutation, fullSync bool, e
 			Action:       mutation.Action.GetUserStatusMuteAction(),
 			FromFullSync: fullSync,
 		}
+	case appstate.IndexLabelEdit:
+		act := mutation.Action.GetLabelEditAction()
+		eventToDispatch = &events.LabelEdit{
+			Timestamp:    ts,
+			LabelID:      mutation.Index[1],
+			Action:       act,
+			FromFullSync: fullSync,
+		}
+	case appstate.IndexLabelAssociationChat:
+		if len(mutation.Index) < 3 {
+			return
+		}
+		jid, _ = types.ParseJID(mutation.Index[2])
+		act := mutation.Action.GetLabelAssociationAction()
+		eventToDispatch = &events.LabelAssociationChat{
+			JID:          jid,
+			Timestamp:    ts,
+			LabelID:      mutation.Index[1],
+			Action:       act,
+			FromFullSync: fullSync,
+		}
+	case appstate.IndexLabelAssociationMessage:
+		if len(mutation.Index) < 6 {
+			return
+		}
+		jid, _ = types.ParseJID(mutation.Index[2])
+		act := mutation.Action.GetLabelAssociationAction()
+		eventToDispatch = &events.LabelAssociationMessage{
+			JID:          jid,
+			Timestamp:    ts,
+			LabelID:      mutation.Index[1],
+			MessageID:    mutation.Index[3],
+			Action:       act,
+			FromFullSync: fullSync,
+		}
 	}
 	if storeUpdateError != nil {
 		cli.Log.Errorf("Failed to update device store after app state mutation: %v", storeUpdateError)
@@ -283,14 +318,14 @@ func (cli *Client) requestAppStateKeys(ctx context.Context, rawKeyIDs [][]byte) 
 	keyIDs := make([]*waProto.AppStateSyncKeyId, len(rawKeyIDs))
 	debugKeyIDs := make([]string, len(rawKeyIDs))
 	for i, keyID := range rawKeyIDs {
-		keyIDs[i] = &waProto.AppStateSyncKeyId{KeyId: keyID}
+		keyIDs[i] = &waProto.AppStateSyncKeyId{KeyID: keyID}
 		debugKeyIDs[i] = hex.EncodeToString(keyID)
 	}
 	msg := &waProto.Message{
 		ProtocolMessage: &waProto.ProtocolMessage{
 			Type: waProto.ProtocolMessage_APP_STATE_SYNC_KEY_REQUEST.Enum(),
 			AppStateSyncKeyRequest: &waProto.AppStateSyncKeyRequest{
-				KeyIds: keyIDs,
+				KeyIDs: keyIDs,
 			},
 		},
 	}
