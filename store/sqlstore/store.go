@@ -66,13 +66,21 @@ var _ store.AppStateStore = (*SQLStore)(nil)
 var _ store.ContactStore = (*SQLStore)(nil)
 
 const (
+	//putIdentityQuery = `
+	//	INSERT INTO whatsmeow_identity_keys (our_jid, their_id, identity) VALUES ($1, $2, $3)
+	//	ON CONFLICT (our_jid, their_id) DO UPDATE SET identity=excluded.identity
+	//`
+	//deleteAllIdentitiesQuery = `DELETE FROM whatsmeow_identity_keys WHERE our_jid=$1 AND their_id LIKE $2`
+	//deleteIdentityQuery      = `DELETE FROM whatsmeow_identity_keys WHERE our_jid=$1 AND their_id=$2`
+	//getIdentityQuery         = `SELECT identity FROM whatsmeow_identity_keys WHERE our_jid=$1 AND their_id=$2`
+
 	putIdentityQuery = `
-		INSERT INTO whatsmeow_identity_keys (our_jid, their_id, identity) VALUES ($1, $2, $3)
-		ON CONFLICT (our_jid, their_id) DO UPDATE SET identity=excluded.identity
+		INSERT INTO whatsmeow_identity_keys (our_jid, their_id, identity) VALUES (?, ?, ?)
+		ON DUPLICATE KEY UPDATE identity=?
 	`
-	deleteAllIdentitiesQuery = `DELETE FROM whatsmeow_identity_keys WHERE our_jid=$1 AND their_id LIKE $2`
-	deleteIdentityQuery      = `DELETE FROM whatsmeow_identity_keys WHERE our_jid=$1 AND their_id=$2`
-	getIdentityQuery         = `SELECT identity FROM whatsmeow_identity_keys WHERE our_jid=$1 AND their_id=$2`
+	deleteAllIdentitiesQuery = `DELETE FROM whatsmeow_identity_keys WHERE our_jid=? AND their_id LIKE ?`
+	deleteIdentityQuery      = `DELETE FROM whatsmeow_identity_keys WHERE our_jid=? AND their_id=?`
+	getIdentityQuery         = `SELECT identity FROM whatsmeow_identity_keys WHERE our_jid=? AND their_id=?`
 )
 
 //func (s *SQLStore) PutIdentity(address string, key [32]byte) error {
