@@ -109,6 +109,10 @@ const getDeviceQuery = getAllDevicesQuery + " WHERE jid=?"
 
 const getDeviceByJidUserQuery = getAllDevicesQuery + " WHERE jid_user=? order by created_time desc limit 1 "
 
+func (c *Container) GenerateDevice() (*store.Device, error) {
+	return c.NewDevice(), nil
+}
+
 type scannable interface {
 	Scan(dest ...interface{}) error
 }
