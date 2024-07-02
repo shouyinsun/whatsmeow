@@ -154,7 +154,7 @@ func (s *SQLStore) HasSession(address string) (has bool, err error) {
 }
 
 func (s *SQLStore) PutSession(address string, session []byte) error {
-	_, err := s.db.Exec(putSessionQuery, s.JID, address, session)
+	_, err := s.db.Exec(putSessionQuery, s.JID, address, session, session)
 	return err
 }
 
