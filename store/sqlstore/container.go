@@ -126,11 +126,16 @@ func (c *Container) scanDevice(row scannable) (*store.Device, error) {
 	var account waProto.ADVSignedDeviceIdentity
 	var fbUUID uuid.NullUUID
 
+	//err := row.Scan(
+	//	&device.ID, &device.RegistrationID, &noisePriv, &identityPriv,
+	//	&preKeyPriv, &device.SignedPreKey.KeyID, &preKeySig,
+	//	&device.AdvSecretKey, &account.Details, &account.AccountSignature, &account.AccountSignatureKey, &account.DeviceSignature,
+	//	&device.Platform, &device.BusinessName, &device.PushName, &fbUUID)
 	err := row.Scan(
 		&device.ID, &device.RegistrationID, &noisePriv, &identityPriv,
 		&preKeyPriv, &device.SignedPreKey.KeyID, &preKeySig,
 		&device.AdvSecretKey, &account.Details, &account.AccountSignature, &account.AccountSignatureKey, &account.DeviceSignature,
-		&device.Platform, &device.BusinessName, &device.PushName, &fbUUID)
+		&device.Platform, &device.BusinessName, &device.PushName, &device.SubjectId, &device.Enable, &device.CreatedTime)
 	if err != nil {
 		return nil, fmt.Errorf("failed to scan session: %w", err)
 	} else if len(noisePriv) != 32 || len(identityPriv) != 32 || len(preKeyPriv) != 32 || len(preKeySig) != 64 {
